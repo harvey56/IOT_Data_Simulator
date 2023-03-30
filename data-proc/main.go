@@ -27,30 +27,6 @@ func (m *MQTT) Init(broker string, client_id string) error {
 	m = new(MQTT)
 
 	m.ClientID = client_id
-	m.
 
-	// m.connection = make(chan bool)
-	// m.outgoing = make(chan MQTT_Outgoing, 50)
-	// m.request_broker_exit = make(chan bool)
-	// m.requested_broker_state = make(chan bool, 1)
-	// m.broker_connected = make(chan bool, 1)
-	// m.params.KeepAlive = 100
-	// m.params.PingTimeout = 100
-	// m.params.ConnectTimeout = 1
-	// m.params.OutgoingMessageTimeout_ms = config.MQTT_Wait_Timeout_ms() // ms
-
-	// m.wg.Add(1)
-
-	// m.params.Broker_Address = broker
-	// m.params.ClientId = client_id
-
-	// m.process_list = make(map[string]*MQTT_Topic)
-
-	// go m.runMqtt()
-
-	return m, nil
-}
-
-func (m *MQTT) Connect() error {
-
+	return nil
 }
