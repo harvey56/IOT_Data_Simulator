@@ -11,17 +11,24 @@ services:
     entrypoint: ['./entrypoint.sh']
     restart: on-failure:10
     ports:
-      - ${DOCKER_INFLUXDB_INIT_PORT}:8086
+      - 8086:8086
+    networks:
+      - iot
 
   telegraf:
     image: telegraf:1.26
     container_name: telegraf
     volumes:
-      - ${TELEGRAF_CFG_PATH}:/etc/telegraf/telegraf.conf:rw
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:rw
     env_file:
       - .env
     depends_on:
       - influxdb
+      # - mosquitto
+    ports:
+      - 8125:8125
+    networks:
+      - iot
 
   grafana:
     image: grafana/grafana-oss:8.4.3
@@ -31,8 +38,21 @@ services:
     depends_on:
       - influxdb
     ports:
-      - ${GRAFANA_PORT}:3000
+      - 3000:3000
+    networks:
+      - iot
 
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - 1881:1881
+    networks:
+      - iot
+
+networks:
+  iot:
 volumes:
   grafana-storage:
   influxdb-storage:

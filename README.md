@@ -21,3 +21,11 @@ docker-compose up -d
 To check the services are running :
 
 docker container ps
+
+You should see the 3 services running (influxdb, grafana, telegraf).
+If you don't see telegraf listed, that most likely means there is an error with the telegraf.conf file.
+
+docker logs telegraf will indicate where the configuration error is.
+
+Crate a network so all containers can exchange data :
+docker network create iot
