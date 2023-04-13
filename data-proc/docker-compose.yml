@@ -24,7 +24,7 @@ services:
       - .env
     depends_on:
       - influxdb
-      # - mosquitto
+      - mosquitto
     ports:
       - 8125:8125
     networks:
@@ -47,7 +47,12 @@ services:
     container_name: mosquitto
     restart: unless-stopped
     ports:
-      - 1881:1881
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
     networks:
       - iot
 
