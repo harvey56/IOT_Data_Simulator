@@ -29,3 +29,9 @@ docker logs telegraf will indicate where the configuration error is.
 
 Crate a network so all containers can exchange data :
 docker network create iot
+
+To access influxDB CLI :
+docker exec -it influxdb /bin/bash
+
+Check that your InfluxDB server is correctly listening on port 8086 on your host :
+netstat -tulpn | grep 8086
