@@ -10,8 +10,9 @@ import (
 
 	// "time"
 
-	// viper_config "github.com/spf13/viper"
 	homie "github.com/andig/homie"
+	viper_config "github.com/spf13/viper"
+
 	// autopaho "github.com/eclipse/paho.golang/autopaho"
 	paho "github.com/eclipse/paho.golang/paho"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -63,20 +64,23 @@ type MQTT_Config struct {
 type Config struct {
 	ClientID string
 	// BrokerURL *url.URL
-	// main_config     *viper_config.Viper
-	Hostname string
-	MQTT     MQTT_Config
+	mqtt_config *viper_config.Viper
+	Hostname    string
+	MQTT        MQTT_Config
 }
 type Client struct {
 	conn     *paho.Client
 	cp       *paho.Connect
 	pb       *paho.Publish
+	sb       *paho.Subscribe
 	co       *net.Conn
 	topic    string
 	qos      byte
 	config   *Config
 	gateways map[string]bool
 }
+
+const mqtt_config_filename string = "mqtt-config"
 
 var (
 	Main *Config
@@ -95,52 +99,58 @@ func newConfig() *Config {
 	}
 	hostname = strings.ReplaceAll(hostname, " ", "")
 	config.Hostname = hostname
-	// config.main_config = viper_config.New()
+	config.mqtt_config = viper_config.New()
 
-	// config.main_config.SetConfigName(main_config_filename)
-	// config.main_config.AddConfigPath("./")
-	// config.main_config.SetConfigType("json")
+	config.mqtt_config.SetConfigName(mqtt_config_filename)
+	config.mqtt_config.AddConfigPath("./")
+	config.mqtt_config.SetConfigType("json")
 
+	//Setting some default values
 	config.MQTT.Broker_Address = "localhost"
 	config.MQTT.Broker_Port = 1883
 	config.MQTT.Username = ""
 	config.MQTT.Password = ""
 
-	// config.main_config.SetDefault("mqtt", config.MQTT)
-
 	return config
-}
-
-func myHandler(p *paho.Publish) {
-	fmt.Printf("Received message on topic %s: %s\n", p.Topic, p.Payload)
 }
 
 func main() {
 	fmt.Println("Hello, main")
 
-	Config_Initialization()
-	server := fmt.Sprintf("%s:%d", newConfig().MQTT.Broker_Address, newConfig().MQTT.Broker_Port)
+	// Config_Initialization()
+	// server := fmt.Sprintf("%s:%d", newConfig().MQTT.Broker_Address, newConfig().MQTT.Broker_Port)
 
-	conn, err := net.Dial("tcp", server)
-	if err != nil {
-		log.Fatalf("Failed to connect to %s: %s", server, err)
-	}
+	// conn, err := net.Dial("tcp", server)
+	// if err != nil {
+	// 	log.Fatalf("Failed to connect to %s: %s", server, err)
+	// }
 
-	c := new(Client)
-	c.co = &conn
-	c.Init()
-	c.Connect(newConfig(), server)
+	// c := new(Client)
+	// c.co = &conn
+	// c.Init()
+	// c.Connect(newConfig(), server)
 
-	props := &paho.PublishProperties{}
-	msg := "GREEN"
-	p := &paho.Publish{
-		QoS:        0,
-		Topic:      "Homie/Light/Color",
-		Properties: props,
-		Payload:    []byte(msg),
-	}
-	c.Publish(p)
-	conn.Close()
+	// props := &paho.PublishProperties{}
+	// msg := "GREEN"
+	// p := &paho.Publish{
+	// 	QoS:        0,
+	// 	Topic:      "Homie/Light/Color",
+	// 	Properties: props,
+	// 	Payload:    []byte(msg),
+	// }
+	// c.Publish(p)
+	// conn.Close()
+
+	Test("Homie/Light/Color", "GREEN")
+
+	// var homietopic *HomieTopic
+	// homietopic = &HomieTopic{Homie: "homie", Device: "firefly", Node: "Panel1"}
+	// topic := homietopic.Homie + "/" + homietopic.Device + "/" + homietopic.Node
+	// var property *homie.Property
+	// property = &homie.Property{Name: "Color", Value: "GREEN"}
+
+	// config := SampleConfig(&homietopic, &property)
+	// c.Publish(context.Background(), topic, property.Value, byte(1))
 
 	// Create a client
 	// You can generate an API Token from the "API Tokens Tab" in the UI
@@ -149,6 +159,9 @@ func main() {
 	// defer client.Close()
 }
 
+func myHandler(p *paho.Publish) {
+	log.Printf("Received message on topic %s: %s\n", p.Topic, p.Payload)
+}
 func (client *Client) Init() *paho.Client {
 	c := paho.NewClient(paho.ClientConfig{
 		Router: paho.NewSingleHandlerRouter(myHandler),
@@ -158,7 +171,6 @@ func (client *Client) Init() *paho.Client {
 
 	return c
 }
-
 func (client *Client) Connect(config *Config, server string) {
 	client.cp = &paho.Connect{
 		KeepAlive:  30,
@@ -168,18 +180,28 @@ func (client *Client) Connect(config *Config, server string) {
 		Password:   []byte(config.MQTT.Password),
 	}
 
+	if *&config.MQTT.Username != "" {
+		client.cp.UsernameFlag = true
+	}
+	if *&config.MQTT.Password != "" {
+		client.cp.PasswordFlag = true
+	}
+
 	ca, err := client.conn.Connect(context.Background(), client.cp)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	// list of reason codes : https://www.emqx.com/en/blog/mqtt5-new-features-reason-code-and-ack
+	// 0 = Success
+	// 16 = Server received message but there are no subscribers
 	if ca.ReasonCode != 0 {
 		log.Fatalf("Failed to connect to %s : %d - %s", server, ca.ReasonCode, ca.Properties.ReasonString)
 	}
 
-	fmt.Printf("Connected to %s\n", server)
+	log.Printf("Connected to %s\n", server)
 }
-
 func (client *Client) Publish(p *paho.Publish) {
+	p.Properties.User.Add("testuser", "test")
 	client.pb = &paho.Publish{
 		Topic:      *&p.Topic,
 		QoS:        byte(*&p.QoS),
@@ -191,22 +213,66 @@ func (client *Client) Publish(p *paho.Publish) {
 		log.Println(err)
 	}
 
-	fmt.Printf("message published...")
+	log.Printf("Published %s to Topic %s \n", p.Payload, *&p.Topic)
 }
+func (client *Client) Subscribe(p *paho.Subscribe, topic string) {
+	client.sb = &paho.Subscribe{
+		Properties: p.Properties,
+		Subscriptions: map[string]paho.SubscribeOptions{
+			topic: p.Subscriptions[topic],
+		},
+	}
 
-// func (c *Client) Test() error {
-// 	var homietopic *HomieTopic
-// 	homietopic = &HomieTopic{Homie: "homie", Device: "firefly", Node: "Panel1"}
-// 	topic := homietopic.Homie + "/" + homietopic.Device + "/" + homietopic.Node
-// 	var property *homie.Property
-// 	property = &homie.Property{Name: "Color", Value: "GREEN"}
+	if _, err := client.conn.Subscribe(context.Background(), client.sb); err != nil {
+		log.Println(err)
+	}
 
-// 	// config := SampleConfig(&homietopic, &property)
-// 	c.Publish(context.Background(), topic, property.Value, byte(1))
+	log.Printf("Subscribed to %s \n", topic)
+}
+func Test(topic string, payload string) {
+	fmt.Println("Testing MQTT connection...")
 
-// 	return nil
-// }
+	// Initialize configuration
+	Config_Initialization()
+	server := fmt.Sprintf("%s:%d", newConfig().MQTT.Broker_Address, newConfig().MQTT.Broker_Port)
 
+	conn, err := net.Dial("tcp", server)
+	if err != nil {
+		log.Fatalf("Failed to connect to %s: %s", server, err)
+	}
+
+	c := new(Client)
+	c.co = &conn
+	c.Init()
+	// Connect to the MQTT server
+	c.Connect(newConfig(), server)
+
+	//Subscribe to the defined Topic
+	subscribeProperties := &paho.SubscribeProperties{}
+	subscribeOptions := paho.SubscribeOptions{
+		QoS: 0,
+	}
+	s := &paho.Subscribe{
+		Properties:    subscribeProperties,
+		Subscriptions: map[string]paho.SubscribeOptions{topic: subscribeOptions},
+	}
+	c.Subscribe(s, topic)
+
+	//Publish a message to the predefined MQTT Topic
+	props := &paho.PublishProperties{}
+	p := &paho.Publish{
+		QoS:        0,
+		Topic:      topic,
+		Properties: props,
+		Payload:    []byte(payload),
+	}
+	c.Publish(p)
+
+	published_packet := p.Packet()
+	log.Printf("Payload: %s", published_packet.Payload)
+	// c.conn.Conn.Read([]byte(payload))
+	conn.Close()
+}
 func SampleConfig(topic *HomieTopic, property *homie.Property) *homie.Device {
 	d := homie.NewDevice()
 
@@ -247,12 +313,6 @@ func SampleConfig(topic *HomieTopic, property *homie.Property) *homie.Device {
 	// handler.Client.Disconnect(1000)
 
 	return nil
-}
-
-type MqttConfig struct {
-	URL      string `help:"MQTT broker to send messages to" required:""`
-	Username string `help:"Username to authenticate with"`
-	Password string `help:"Password to authenticate with"`
 }
 
 // func New(ctx context.Context, cfg MqttConfig) (*Client, error) {

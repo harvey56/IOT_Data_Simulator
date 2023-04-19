@@ -1,0 +1,14 @@
+{
+  "general": {
+    "debug_level": "error",
+    "log_file": "./mqtt-logs.log"
+  },
+  "mqtt": {
+    "broker_address": "localhost",
+    "broker_port": 1883,
+    "username": "",
+    "password": ""
+  },
+  "clientID": "test",
+  "hostname": "localhost"
+}
